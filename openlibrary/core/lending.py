@@ -895,7 +895,7 @@ def get_lending_state(doc, user=None, check_loan_status=False) -> str:
 RESULTS_PER_PAGE: int = 25
 
 
-def get_loan_history_data(username: str, page: int) -> dict:
+def get_loan_history_data(username: str, page: int, s3_cookie: str | None) -> dict:
     """Fetch loan history data for a user.
 
     This will use a patron's S3 keys to query the IA loan history API,
@@ -912,7 +912,7 @@ def get_loan_history_data(username: str, page: int) -> dict:
     if not OpenLibraryAccount.get_by_username(username):
         raise render.notfound("Account not found for %s" % username, create=False)
 
-    s3_keys = parse_s3_cookie(web.cookies().get("s3"))
+    s3_keys = parse_s3_cookie(s3_cookie)
     limit = RESULTS_PER_PAGE
     offset = page * limit - limit
 

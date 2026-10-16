@@ -82,6 +82,24 @@ class TestAccountLoansJson:
         assert get_data.called
         assert get_data.call_args.kwargs["page"] == page
 
+    def test_loan_history_json_passes_request_s3_cookie_to_helper(self, fastapi_client, mock_authenticated_user):
+        legacy_user = FakeLegacyUser()
+        mock_response = Mock()
+        mock_response.json.return_value = {"history": {"items": []}}
+
+        with (
+            patch("openlibrary.fastapi.account.accounts.get_current_user", return_value=legacy_user),
+            patch("openlibrary.core.lending.OpenLibraryAccount.get_by_username", return_value=MagicMock()),
+            patch("openlibrary.core.lending.parse_s3_cookie", return_value={"access": "acc", "secret": "sec"}) as parse_s3_cookie,
+            patch("openlibrary.core.lending.s3_loan_api", return_value=mock_response),
+            patch("openlibrary.core.lending.get_items_and_add_availability", return_value={}),
+        ):
+            response = fastapi_client.get("/account/loan-history.json", cookies={"s3": "request-cookie"})
+
+        assert response.status_code == 200
+        assert response.json()["loans_history"]["docs"] == []
+        parse_s3_cookie.assert_called_once_with("request-cookie")
+
     def test_loan_history_json_rejects_invalid_page(self, fastapi_client, mock_authenticated_user):
         response = fastapi_client.get("/account/loan-history.json?page=0")
 
@@ -147,12 +165,11 @@ class TestAccountLoansJson:
 
         with (
             patch("openlibrary.core.lending.OpenLibraryAccount.get_by_username", return_value=mock_account),
-            patch("openlibrary.core.lending.web.cookies", return_value={"s3": "irrelevant"}),
             patch("openlibrary.core.lending.parse_s3_cookie", return_value={"access": "acc", "secret": "sec"}),
             patch("openlibrary.core.lending.s3_loan_api", return_value=mock_response) as mock_s3_loan_api,
             patch("openlibrary.core.lending.get_items_and_add_availability", return_value={}) as mock_availability,
         ):
-            result = get_loan_history_data(username="testuser", page=1)
+            result = get_loan_history_data(username="testuser", page=1, s3_cookie="irrelevant")
 
             assert result == {
                 "docs": [],

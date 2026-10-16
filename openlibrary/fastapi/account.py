@@ -220,11 +220,12 @@ def account_loans_json(
 
 @router.get("/account/loan-history.json", response_model=AccountLoanHistoryResponse)
 def account_loan_history_json(
+    request: Request,
     _: Annotated[AuthenticatedUser, Depends(require_authenticated_user)],
     page: Annotated[int, Query(ge=1)] = 1,
 ) -> dict:
     try:
-        return legacy_account.get_account_loan_history_json(accounts.get_current_user(), page)
+        return legacy_account.get_account_loan_history_json(accounts.get_current_user(), page, s3_cookie=request.cookies.get("s3"))
     except Exception:
         if get_ol_env().LOCAL_DEV:
             raise HTTPException(
